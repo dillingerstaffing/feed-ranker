@@ -235,7 +235,7 @@
       for (var i = 0; i < rows.length; i++) {
         if (rows[i].getAttribute('data-frk-group') === group &&
             rows[i].getAttribute('data-frk-key') === key) {
-          rows[i].scrollIntoView({ block: 'nearest' });
+          if (rows[i].scrollIntoView) rows[i].scrollIntoView({ block: 'nearest' });
           rows[i].classList.add('frk-flash');
           (function (row) {
             setTimeout(function () { row.classList.remove('frk-flash'); }, 1200);
@@ -329,7 +329,18 @@
       sync: sync,
       open: function () { setOpen(true); },
       close: function () { setOpen(false); },
-      refresh: function () { if (open) render(); syncButton(); },
+      refresh: function () {
+        syncButton();
+        if (open) {
+          // Do not rebuild rows while the reader is interacting with
+          // the panel: the slider handler already updates its own row
+          // in place, and a rebuild would destroy the drag.
+          var ae = null;
+          try { ae = document.activeElement; } catch (e) {}
+          if (ae && panel.contains(ae)) return;
+          render();
+        }
+      },
       destroy: function () {
         clearWhy();
         if (btn.parentNode) btn.parentNode.removeChild(btn);
