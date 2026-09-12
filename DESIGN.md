@@ -77,6 +77,47 @@ Applied before scoring, in this order:
 
 Then score, apply the diversity adjustment, and return the ordered list.
 
+## Blog support
+
+Blog posts are first-class rankable items. `src/blog.js` adapts a blog
+article ({ slug, title, date, description, paragraphs }) to the item
+shape above:
+
+    {
+      id: 'blog:' + slug,   // namespaced so blog and wire ids never collide
+      url: '/portfolio/blog/' + slug + '/',
+      title, topics, source: 'portfolio', kind: 'post',
+      publishedAt, signal: 0
+    }
+
+Articles carry no topic tags, so `topicsFor` maps article text onto the
+wire's topic vocabulary with ordered keyword rules (kernel, embedded,
+hardware-hacking, riscv-hardware, tooling, algorithm, riscv-isa),
+falling back to riscv-isa. 'algorithm' is added for pure-computation
+notes the wire never carries. The mapping extends the vocabulary; the
+profile does not fork. One storage key,
+`feed-ranker/profile/v1`, serves both pages: a read on the wire raises
+affinities the blog ranking sees, and vice versa.
+
+Articles have no signal score, so prior is 0 and cold start orders by
+recency, matching the listing's newest-first default.
+
+## Dwell-gated reads
+
+A click alone is not a read; only sustained attention counts.
+`src/dwell.js` provides:
+
+- `dwell.track(item, opts)`: accumulates only visible time (hidden time
+  never accrues, via the visibility API). At `thresholdMs` of visible
+  dwell (default 15000) it records a read exactly once. Returns
+  `{ cancel(), accrued() }`; cancelling (quick open-and-back) records
+  nothing. The immediate `feedback.recordRead` stays for explicit cases,
+  but page wiring uses the dwell path.
+- `dwell.absenceResult(departedAtMs, returnedAtMs, bounceMs)`: pure
+  bounce decision for outbound links. Away for `bounceMs` (default
+  10000) or longer is a read; a shorter absence is a bounce and records
+  nothing.
+
 ## Module layout
 
     src/
@@ -86,6 +127,7 @@ Then score, apply the diversity adjustment, and return the ordered list.
       feedback.js   recordRead / recordSkip / recordDismiss, affinity updates
       ranker.js     pipeline: rules -> features -> score -> diversity
                     -> ordered list
+      blog.js       blog adapter: article -> item, shared topic vocabulary
 
 One entry point: `rank(items)` reads the profile, runs the pipeline, returns
 a new array. The `feedback` functions mutate the profile.

@@ -26,6 +26,10 @@ Four stages:
       feedback.js   recordRead / recordSkip / recordDismiss, affinity updates
       ranker.js     pipeline: rules -> features -> score -> diversity
                     -> ordered list
+      blog.js       blog adapter: article -> rankable item, topic mapping
+                    onto the shared vocabulary
+      dwell.js      dwell-gated reads: visible-time tracker and outbound
+                    bounce decision
     dist/
       feed-ranker.js  concatenated build of src/, the file pages load
 
@@ -51,3 +55,26 @@ returns a new array. The feedback functions update the profile. With no
 history, ordering falls back to recency and the item's signal score, and
 becomes personal as feedback accumulates. See DESIGN.md for the pipeline,
 the scoring function, and the update rules.
+
+## Blog posts
+
+Blog articles adapt to the same item shape, so one profile ranks both
+the wire and the blog:
+
+    var articles = [ { slug: "div-by-zero", title: "...", date: "2026-09-12",
+                       description: "...", paragraphs: ["..."] } ];
+    var items = FeedRanker.blog.adaptAll(articles);
+    var ordered = FeedRanker.rank(items);
+    FeedRanker.feedback.recordRead(items[0]);  // updates the shared profile
+
+`FeedRanker.blog.topicsFor(article)` maps article text onto the wire's
+topic vocabulary. The profile storage key is unchanged: reads and skips
+on either page shape the ranking on both.
+
+## Dwell-gated reads
+
+A click alone is not a read. On article pages, `FeedRanker.dwell.track`
+records a read only after 15 seconds of visible dwell; a quick
+open-and-back records nothing. For outbound links, `FeedRanker.dwell`
+`.absenceResult` treats an absence under 10 seconds as a bounce (no
+signal) and a longer one as a read.

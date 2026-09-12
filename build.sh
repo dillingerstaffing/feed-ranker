@@ -10,7 +10,7 @@ mkdir -p dist
   echo "(function (root) {"
   echo "'use strict';"
   echo "var FeedRanker = {};"
-  grep -h -v '^var FeedRanker' src/features.js src/profile.js src/feedback.js src/ranker.js
+  grep -h -v '^var FeedRanker' src/features.js src/profile.js src/feedback.js src/ranker.js src/blog.js src/dwell.js
   echo "root.FeedRanker = FeedRanker;"
   echo "})(typeof window !== 'undefined' ? window : globalThis);"
 } > dist/feed-ranker.js
