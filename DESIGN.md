@@ -144,6 +144,16 @@ separate from the node-testable core) exposes `console.mount()`:
 - `ranker.explain(item)`: top 3 contributing affinity signals behind an
   item's score (group, key, value, contribution), backing the per-item
   "why ranked" affordance.
+- Reset is a two-step inline confirm: the first click arms the button
+  ("Confirm reset?"), the second within 4 seconds clears the profile;
+  no native dialog.
+- On open, the console checks whether the page's sticky bar
+  (`cfg.stickySel`) overlaps the panel and scrolls just enough to
+  clear it.
+- Console rows are seeded from the vocabulary of all rankable items
+  (`cfg.getAllItems`, falling back to `getItems`): a fresh profile
+  shows every topic/source/kind at +0.00, measured, with working
+  sliders, instead of an empty panel.
 
 The console is discoverable only while For You is active. It never
 writes to the profile except through the reader's own edits.

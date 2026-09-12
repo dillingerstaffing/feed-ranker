@@ -9,6 +9,14 @@
        panelHost:   element,  // the panel is appended here
        getMode:     function () -> 'foryou' when For You is active,
        getItems:    function () -> [{ id, item, el }] visible items,
+       getAllItems: function () -> [{ id, item, el }] all rankable items
+                   (optional; falls back to getItems; used to seed the
+                   console rows with the full topic/source/kind
+                   vocabulary so the panel is useful before anything
+                   has been learned),
+       stickySel:   CSS selector of a sticky bar that can overlap the
+                   panel when stuck (optional; the console nudges the
+                   page just enough to clear it on open),
        rerank:      function () -> re-apply the For You ordering,
        placeWhy:    function (entry, btn) -> put the why button in the
                                   item's DOM (page-specific positioning)
@@ -115,7 +123,22 @@
       open = v;
       panel.hidden = !v;
       btn.setAttribute('aria-expanded', String(v));
-      if (v) render();
+      if (v) { render(); reveal(); }
+    }
+
+    // If a sticky bar (the feed's stuck controls, for example) paints
+    // over the freshly opened panel, nudge the page just enough to
+    // clear it. No-op when there is no overlap.
+    function reveal() {
+      if (!cfg.stickySel || typeof document === 'undefined') return;
+      var bar;
+      try { bar = document.querySelector(cfg.stickySel); } catch (e) { return; }
+      if (!bar) return;
+      var rb = bar.getBoundingClientRect();
+      var rp = panel.getBoundingClientRect();
+      if (rb.bottom > rp.top + 1) {
+        window.scrollBy({ top: (rb.bottom - rp.top) + 12, behavior: 'smooth' });
+      }
     }
 
     btn.addEventListener('click', function () { setOpen(!open); });
@@ -198,6 +221,35 @@
       return g;
     }
 
+    // Rows come from the profile snapshot, seeded with the full
+    // vocabulary of the rankable items: a fresh reader sees every
+    // topic/source/kind at +0.00 (measured, nothing learned yet) with
+    // a working slider, instead of an empty panel. Learned and pinned
+    // rows keep their values and sort first.
+    function seeded(snapRows, group) {
+      var seen = {};
+      snapRows.forEach(function (r) { seen[r.key] = true; });
+      var items = [];
+      try { items = ((cfg.getAllItems || cfg.getItems)() || []); } catch (e) {}
+      items.forEach(function (entry) {
+        var it = (entry && entry.item) || entry || {};
+        var keys = group === 'topic' ? (it.topics || [])
+          : group === 'source' ? (it.source ? [it.source] : [])
+          : (it.kind ? [it.kind] : []);
+        keys.forEach(function (k) {
+          if (k && !seen[k]) {
+            seen[k] = true;
+            snapRows.push({ key: k, value: 0, basis: 'measured' });
+          }
+        });
+      });
+      snapRows.sort(function (a, b) {
+        if (b.value !== a.value) return b.value - a.value;
+        return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+      });
+      return snapRows;
+    }
+
     function render() {
       var snap = snapshot();
       panel.innerHTML = '';
@@ -221,12 +273,24 @@
       });
       var resetBtn = el('button', 'frk-btn', 'Reset');
       resetBtn.type = 'button';
+      // Two-step inline confirm: no native dialog, the button itself
+      // becomes the question and disarms after a few seconds.
+      var resetArmed = false, resetTimer = null;
       resetBtn.addEventListener('click', function () {
-        if (window.confirm('Reset all ranking signals to their defaults?')) {
-          FeedRanker.profile.resetProfile();
-          render();
-          try { cfg.rerank(); } catch (e) {}
+        if (!resetArmed) {
+          resetArmed = true;
+          resetBtn.textContent = 'Confirm reset?';
+          resetTimer = setTimeout(function () {
+            resetArmed = false;
+            if (resetBtn.isConnected) resetBtn.textContent = 'Reset';
+          }, 4000);
+          return;
         }
+        clearTimeout(resetTimer);
+        resetArmed = false;
+        FeedRanker.profile.resetProfile();
+        render();
+        try { cfg.rerank(); } catch (e) {}
       });
       actions.appendChild(pauseBtn);
       actions.appendChild(resetBtn);
@@ -237,9 +301,9 @@
         'This panel shows the signals that order For you. ' +
         'Adjusting them only changes ordering.'));
 
-      panel.appendChild(groupBlock('TOPICS', snap.topics, 'topic'));
-      panel.appendChild(groupBlock('SOURCES', snap.sources, 'source'));
-      panel.appendChild(groupBlock('KINDS', snap.kinds, 'kind'));
+      panel.appendChild(groupBlock('TOPICS', seeded(snap.topics, 'topic'), 'topic'));
+      panel.appendChild(groupBlock('SOURCES', seeded(snap.sources, 'source'), 'source'));
+      panel.appendChild(groupBlock('KINDS', seeded(snap.kinds, 'kind'), 'kind'));
 
       var w = snap.weights;
       panel.appendChild(el('div', 'frk-blend',
