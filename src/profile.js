@@ -138,6 +138,19 @@
     return p;
   }
 
+  // Release a pinned row back to "measured". The value stays where
+  // the user left it; learning resumes nudging from there. This is
+  // the per-row counterpart to reset: editing pins one axis, release
+  // unpins it, reset clears everything.
+  function releaseAffinity(group, key) {
+    var p = load();
+    var manual = manualTable(p, group);
+    if (!manual || !key) return p;
+    delete manual[key];
+    save(p);
+    return p;
+  }
+
   function setPaused(on) {
     var p = load();
     p.paused = !!on;
@@ -203,6 +216,7 @@
     blank: blank,
     KEY: KEY,
     setAffinity: setAffinity,
+    releaseAffinity: releaseAffinity,
     setPaused: setPaused,
     isPaused: isPaused,
     resetProfile: resetProfile,

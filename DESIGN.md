@@ -127,7 +127,14 @@ separate from the node-testable core) exposes `console.mount()`:
 - `profile.getSnapshot()`: every signal as a row (key, value, basis:
   "measured" or "set by you"), plus status, counts, and blend weights.
 - `profile.setAffinity(group, key, value)`: explicit edit, clamped to
-  [-1, 1], marks the basis "set by you".
+  [-1, 1], marks the basis "set by you". A pinned row is the reader's:
+  learning skips it (reads, skips, dismissals move only "measured"
+  rows). This is per-row, not a global mode: untouched rows keep
+  learning while pinned rows hold.
+- `profile.releaseAffinity(group, key)`: unpins one row back to
+  "measured". The value stays where the reader left it; learning
+  resumes nudging from there. The console shows a "release" affordance
+  next to "set by you" rows.
 - `profile.setPaused(bool)` / `isPaused()`: while paused, every write
   path (`feedback.*`, `dwell.track` completion) is a no-op. Manual
   edits still apply: they are the reader's explicit action, not

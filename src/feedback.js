@@ -13,13 +13,29 @@
     table[key] = clampAffinity(cur + step * (target - cur));
   }
 
+  // A row the user pinned ("set by you") is theirs: learning skips
+  // it. Only "measured" rows move. Pause is checked by the callers;
+  // pinning is orthogonal to it.
+  function pinned(profile, group, key) {
+    var m = group === 'topic' ? profile.manualTopics
+      : group === 'source' ? profile.manualSources
+      : profile.manualKinds;
+    return !!(m && m[key]);
+  }
+
   function touchAffinities(profile, item, target, step) {
     var topics = item.topics || [];
     for (var i = 0; i < topics.length; i++) {
-      moveToward(profile.topicAffinity, topics[i], target, step);
+      if (!pinned(profile, 'topic', topics[i])) {
+        moveToward(profile.topicAffinity, topics[i], target, step);
+      }
     }
-    if (item.source) moveToward(profile.sourceAffinity, item.source, target, step);
-    if (item.kind) moveToward(profile.kindAffinity, item.kind, target, step);
+    if (item.source && !pinned(profile, 'source', item.source)) {
+      moveToward(profile.sourceAffinity, item.source, target, step);
+    }
+    if (item.kind && !pinned(profile, 'kind', item.kind)) {
+      moveToward(profile.kindAffinity, item.kind, target, step);
+    }
   }
 
   // Read: affinity moves toward 1 at the full learning rate.

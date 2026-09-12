@@ -53,6 +53,7 @@
     '.frk-bar{flex:1 1 100%;position:relative;height:7px;background:rgba(128,128,128,.18)}',
     '.frk-bar i{position:absolute;top:0;bottom:0;background:currentColor;opacity:.7;display:block}',
     '.frk-basis{flex:0 0 auto;font-size:11px;opacity:.55}',
+    '.frk-release{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}',
     '.frk-row input[type=range]{flex:1 1 140px;accent-color:currentColor;margin:0}',
     '.frk-empty{opacity:.5;font-size:11px;padding:6px 0}',
     '.frk-blend{opacity:.5;font-size:11px;margin-top:14px}',
@@ -132,6 +133,24 @@
       bar.appendChild(i);
     }
 
+    // A "set by you" row is pinned: learning skips it until the user
+    // releases it back to measured (value stays, learning resumes
+    // from there) or resets the profile.
+    function showPinned(basis, r, group) {
+      basis.textContent = '';
+      basis.appendChild(document.createTextNode('set by you '));
+      var rel = el('button', 'frk-release', 'release');
+      rel.setAttribute('aria-label',
+        'release ' + r.key + ' back to measured');
+      rel.title = 'Let learning adjust this signal again';
+      rel.addEventListener('click', function () {
+        FeedRanker.profile.releaseAffinity(group, r.key);
+        r.basis = 'measured';
+        basis.textContent = 'measured';
+      });
+      basis.appendChild(rel);
+    }
+
     function groupBlock(title, rowsArr, group) {
       var g = el('div', 'frk-group');
       g.appendChild(el('div', 'frk-group-title', title));
@@ -149,7 +168,9 @@
         var bar = el('div', 'frk-bar');
         bar.setAttribute('aria-hidden', 'true');
         barFill(bar, r.value);
-        var basis = el('span', 'frk-basis', r.basis);
+        var basis = el('span', 'frk-basis');
+        if (r.basis === 'set by you') showPinned(basis, r, group);
+        else basis.textContent = 'measured';
         var slider = document.createElement('input');
         slider.type = 'range';
         slider.min = '-1';
@@ -163,7 +184,7 @@
           r.value = v;
           r.basis = 'set by you';
           val.textContent = fmtVal(v);
-          basis.textContent = 'set by you';
+          showPinned(basis, r, group);
           barFill(bar, v);
           try { cfg.rerank(); } catch (e) {}
         });
