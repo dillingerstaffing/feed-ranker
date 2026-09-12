@@ -1,7 +1,7 @@
 # feed-ranker
 
-Ranks items in a personal news wire by predicted relevance to the reader.
-Runs in the browser. No server, no tracking, no network calls.
+Orders items in a personal news wire by predicted relevance to the reader.
+Runs in the browser. No server. No tracking. No network calls.
 
 ## How it works
 
@@ -17,12 +17,37 @@ Four stages:
 4. Rules: dismissed items, duplicates, and items past the age limit are
    removed before scoring.
 
-## Status
+## Layout
 
-Design phase. See DESIGN.md. No code has been written yet.
+    src/
+      features.js   feature extraction: item -> feature vector
+      profile.js    profile load/save, affinity tables, blend weights
+                    (persisted in localStorage)
+      feedback.js   recordRead / recordSkip / recordDismiss, affinity updates
+      ranker.js     pipeline: rules -> features -> score -> diversity
+                    -> ordered list
+    dist/
+      feed-ranker.js  concatenated build of src/, the file pages load
+
+Build with `./build.sh`. No dependencies.
 
 ## Use
 
-The module plugs into the wire page as an additional sort option alongside
-the existing ones. The page passes items in and gets an ordered list back;
-it reports reads back so the ranking adjusts over time.
+    <script src="feed-ranker.js"></script>
+    <script>
+      var items = [
+        { id: "a1", url: "https://example.com/a", title: "Example",
+          topics: ["riscv-isa"], source: "Example", kind: "article",
+          signal: 5, publishedAt: Date.parse("2026-09-10") }
+      ];
+      var ordered = FeedRanker.rank(items);          // best first
+      FeedRanker.feedback.recordRead(items[0]);     // reader opened it
+      FeedRanker.feedback.recordSkip(items[1]);     // reader skipped it
+      FeedRanker.feedback.recordDismiss(items[2]);  // reader dismissed it
+    </script>
+
+`FeedRanker.rank(items)` reads the stored profile, runs the pipeline, and
+returns a new array. The feedback functions update the profile. With no
+history, ordering falls back to recency and the item's signal score, and
+becomes personal as feedback accumulates. See DESIGN.md for the pipeline,
+the scoring function, and the update rules.
