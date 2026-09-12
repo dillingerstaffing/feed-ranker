@@ -15,3 +15,10 @@ mkdir -p dist
   echo "})(typeof window !== 'undefined' ? window : globalThis);"
 } > dist/feed-ranker.js
 echo "wrote dist/feed-ranker.js ($(wc -c < dist/feed-ranker.js) bytes)"
+# The console is a separate DOM-dependent bundle: it is not part of the
+# core module, which stays runnable under node for tests.
+{
+  echo "/* feed-ranker console: the reader's own ranking profile, editable. */"
+  cat src/console.js
+} > dist/feed-ranker-console.js
+echo "wrote dist/feed-ranker-console.js ($(wc -c < dist/feed-ranker-console.js) bytes)"

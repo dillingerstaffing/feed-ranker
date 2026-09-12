@@ -118,6 +118,29 @@ A click alone is not a read; only sustained attention counts.
   10000) or longer is a read; a shorter absence is a bounce and records
   nothing.
 
+## Ranking console
+
+The reader can view and edit their own ranking profile. `src/console.js`
+(builds to `dist/feed-ranker-console.js`, a DOM-dependent bundle kept
+separate from the node-testable core) exposes `console.mount()`:
+
+- `profile.getSnapshot()`: every signal as a row (key, value, basis:
+  "measured" or "set by you"), plus status, counts, and blend weights.
+- `profile.setAffinity(group, key, value)`: explicit edit, clamped to
+  [-1, 1], marks the basis "set by you".
+- `profile.setPaused(bool)` / `isPaused()`: while paused, every write
+  path (`feedback.*`, `dwell.track` completion) is a no-op. Manual
+  edits still apply: they are the reader's explicit action, not
+  learning. The flag persists in the profile.
+- `profile.resetProfile()`: clears affinities, counts, and the paused
+  flag.
+- `ranker.explain(item)`: top 3 contributing affinity signals behind an
+  item's score (group, key, value, contribution), backing the per-item
+  "why ranked" affordance.
+
+The console is discoverable only while For You is active. It never
+writes to the profile except through the reader's own edits.
+
 ## Module layout
 
     src/
@@ -128,6 +151,9 @@ A click alone is not a read; only sustained attention counts.
       ranker.js     pipeline: rules -> features -> score -> diversity
                     -> ordered list
       blog.js       blog adapter: article -> item, shared topic vocabulary
+      dwell.js      dwell-gated reads: visible-time tracker and outbound
+                    bounce decision
+      console.js    ranking console: snapshot, edits, pause, why-ranked
 
 One entry point: `rank(items)` reads the profile, runs the pipeline, returns
 a new array. The `feedback` functions mutate the profile.

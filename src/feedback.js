@@ -23,8 +23,10 @@
   }
 
   // Read: affinity moves toward 1 at the full learning rate.
+  // While learning is paused, no profile writes happen at all.
   function recordRead(item) {
     var p = ns.profile.load();
+    if (p.paused) return p;
     var lr = p.learningRate || 0.1;
     touchAffinities(p, item, 1, lr);
     p.seen[item.id] = 'read';
@@ -35,6 +37,7 @@
   // Skip: affinity moves toward 0 with a smaller step.
   function recordSkip(item) {
     var p = ns.profile.load();
+    if (p.paused) return p;
     var lr = p.learningRate || 0.1;
     touchAffinities(p, item, 0, lr * 0.5);
     p.seen[item.id] = 'skipped';
@@ -46,6 +49,7 @@
   // the item from future rankings.
   function recordDismiss(item) {
     var p = ns.profile.load();
+    if (p.paused) return p;
     var lr = p.learningRate || 0.1;
     touchAffinities(p, item, -1, lr);
     p.seen[item.id] = 'dismissed';

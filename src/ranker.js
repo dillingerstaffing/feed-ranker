@@ -78,11 +78,42 @@
     return out;
   }
 
+  // Why-ranked: the top 3 affinity signals behind an item's base
+  // score. Each entry names the console row it belongs to
+  // (group + key), its value, and its contribution to the score
+  // (weight * value; the topic weight is split across the item's
+  // topics so the entries sum to the topic dimension's share).
+  // Sorted by contribution, strongest first.
+  function explain(item, opts) {
+    opts = opts || {};
+    var profile = ns.profile.load();
+    var w = profile.weights;
+    var topics = item.topics || [];
+    var n = topics.length || 1;
+    var entries = [];
+    for (var i = 0; i < topics.length; i++) {
+      var t = topics[i];
+      var tv = profile.topicAffinity[t] || 0;
+      entries.push({ group: 'topic', key: t, value: tv, contribution: w.topic * tv / n });
+    }
+    if (item.source) {
+      var sv = profile.sourceAffinity[item.source] || 0;
+      entries.push({ group: 'source', key: item.source, value: sv, contribution: w.source * sv });
+    }
+    if (item.kind) {
+      var kv = profile.kindAffinity[item.kind] || 0;
+      entries.push({ group: 'kind', key: item.kind, value: kv, contribution: w.kind * kv });
+    }
+    entries.sort(function (a, b) { return b.contribution - a.contribution; });
+    return entries.slice(0, 3);
+  }
+
   ns.ranker = {
     rank: rank,
     score: score,
     applyRules: applyRules,
-    diversify: diversify
+    diversify: diversify,
+    explain: explain
   };
   ns.rank = rank;
 })(FeedRanker);

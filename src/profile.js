@@ -48,9 +48,15 @@
       maxAgeDays: 90,
       diversity: { decay: 0.5, floor: 0.2 },
       learningRate: 0.1,
+      paused: false,
       topicAffinity: {},
       sourceAffinity: {},
       kindAffinity: {},
+      // Basis tracking: keys the reader set by hand in the console.
+      // Anything not listed here was learned from reads and skips.
+      manualTopics: {},
+      manualSources: {},
+      manualKinds: {},
       seen: {},
       updatedAt: 0
     };
@@ -74,6 +80,10 @@
           p.topicAffinity = saved.topicAffinity || {};
           p.sourceAffinity = saved.sourceAffinity || {};
           p.kindAffinity = saved.kindAffinity || {};
+          p.manualTopics = saved.manualTopics || {};
+          p.manualSources = saved.manualSources || {};
+          p.manualKinds = saved.manualKinds || {};
+          p.paused = !!saved.paused;
           p.seen = saved.seen || {};
         }
       }
@@ -94,16 +104,109 @@
     } catch (e) { /* ignore */ }
   }
 
+  function clamp11(v) {
+    v = Number(v);
+    if (isNaN(v)) return 0;
+    return v < -1 ? -1 : v > 1 ? 1 : v;
+  }
+
+  function affinityTable(p, group) {
+    if (group === 'topic') return p.topicAffinity;
+    if (group === 'source') return p.sourceAffinity;
+    if (group === 'kind') return p.kindAffinity;
+    return null;
+  }
+
+  function manualTable(p, group) {
+    if (group === 'topic') return p.manualTopics;
+    if (group === 'source') return p.manualSources;
+    if (group === 'kind') return p.manualKinds;
+    return null;
+  }
+
+  // Explicit edit from the console. Marks the key's basis as
+  // "set by you" so the panel can say what was measured and what
+  // was set by hand.
+  function setAffinity(group, key, value) {
+    var p = load();
+    var table = affinityTable(p, group);
+    var manual = manualTable(p, group);
+    if (!table || !manual || !key) return p;
+    table[key] = clamp11(value);
+    manual[key] = true;
+    save(p);
+    return p;
+  }
+
+  function setPaused(on) {
+    var p = load();
+    p.paused = !!on;
+    save(p);
+    return p;
+  }
+
+  function isPaused() {
+    return !!load().paused;
+  }
+
+  function resetProfile() {
+    reset();
+    return blank();
+  }
+
+  // Snapshot for the console: every signal as a row with its value
+  // and basis, plus status and counts for the header.
+  function getSnapshot() {
+    var p = load();
+    function rows(table, manual) {
+      var out = [];
+      for (var k in table) {
+        if (Object.prototype.hasOwnProperty.call(table, k)) {
+          out.push({
+            key: k,
+            value: table[k],
+            basis: manual[k] ? 'set by you' : 'measured'
+          });
+        }
+      }
+      out.sort(function (a, b) { return b.value - a.value; });
+      return out;
+    }
+    var reads = 0, skips = 0, dismissed = 0;
+    for (var id in p.seen) {
+      if (!Object.prototype.hasOwnProperty.call(p.seen, id)) continue;
+      var s = p.seen[id];
+      if (s === 'read') reads++;
+      else if (s === 'skipped') skips++;
+      else if (s === 'dismissed') dismissed++;
+    }
+    return {
+      paused: !!p.paused,
+      weights: defaultWeights(),
+      topics: rows(p.topicAffinity, p.manualTopics),
+      sources: rows(p.sourceAffinity, p.manualSources),
+      kinds: rows(p.kindAffinity, p.manualKinds),
+      counts: { reads: reads, skips: skips, dismissed: dismissed }
+    };
+  }
+
+  function defaultWeights() {
+    var w = {};
+    for (var k in DEFAULT_WEIGHTS) w[k] = DEFAULT_WEIGHTS[k];
+    return w;
+  }
+
   ns.profile = {
     load: load,
     save: save,
     reset: reset,
     blank: blank,
     KEY: KEY,
-    defaultWeights: function () {
-      var w = {};
-      for (var k in DEFAULT_WEIGHTS) w[k] = DEFAULT_WEIGHTS[k];
-      return w;
-    }
+    setAffinity: setAffinity,
+    setPaused: setPaused,
+    isPaused: isPaused,
+    resetProfile: resetProfile,
+    getSnapshot: getSnapshot,
+    defaultWeights: defaultWeights
   };
 })(FeedRanker);

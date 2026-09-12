@@ -52,7 +52,9 @@
       done = true;
       clearTimer();
       if (unsub) { unsub(); unsub = null; }
-      onRead(item);
+      // Paused: the timer may have run, but nothing is recorded.
+      var paused = ns.profile && ns.profile.isPaused ? ns.profile.isPaused() : false;
+      if (!paused) onRead(item);
     }
     function arm() {
       clearTimer();

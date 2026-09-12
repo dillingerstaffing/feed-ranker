@@ -30,8 +30,12 @@ Four stages:
                     onto the shared vocabulary
       dwell.js      dwell-gated reads: visible-time tracker and outbound
                     bounce decision
+      console.js    ranking console: profile snapshot, manual affinity
+                    edits, pause/resume, per-item why-ranked. DOM only.
     dist/
       feed-ranker.js  concatenated build of src/, the file pages load
+      feed-ranker-console.js  console bundle (src/console.js), loaded
+                    alongside the core on pages with the console
 
 Build with `./build.sh`. No dependencies.
 
